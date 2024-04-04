@@ -16,7 +16,7 @@
   register: node_signing_key
 
 - name: Add NodeSource repositories for Node.js.
-  apt_repository:
+  ansible.builtin.apt_repository:
     repo: "deb [arch=amd64 signed-by={{ node_signing_key.dest }}] https://deb.nodesource.com/node_21.x nodistro main"
     state: present
   register: node_repo
@@ -32,7 +32,7 @@
     state: present
 
 - name: Ensure caldera dependencies are present
-  apt:
+  ansible.builtin.apt:
     name: "{{ item }}"
     state: present
     update_cache: yes
@@ -41,13 +41,13 @@
   until: pkg_result is success
 
 - name: Ensure caldera user exists
-  user:
+  ansible.builtin.user:
     name: "{{ caldera_user }}"
     home: "{{ caldera_home }}"
     shell: /bin/bash
 
 - name: Ensure recent pip & setuptools in virtualenv
-  pip:
+  ansible.builtin.pip:
     name: "{{ item }}"
     state: present
     virtualenv: "{{ caldera_home }}/env-caldera"
@@ -58,17 +58,29 @@
   register: pkg_result
   until: pkg_result is success
 
-- name: git clone caldera
-  git:
+- name: Clone caldera repo
+  ansible.builtin.git:
     repo: https://github.com/mitre/caldera.git
     dest: "{{ caldera_rootdir }}"
+    version: "{{ caldera_version }}"
     recursive: true
   become: yes
   become_user: "{{ caldera_user }}"
   register: result
 
+- name: Clone magma repo
+  ansible.builtin.git:
+    repo: https://github.com/mitre/magma.git
+    dest: "{{ caldera_rootdir }}/plugins/magma"
+    version: "{{ magma_version }}"
+    recursive: true
+    update: true
+    force: true
+  become: yes
+  become_user: "{{ caldera_user }}"
+
 - name: Install caldera pip requirements
-  pip:
+  ansible.builtin.pip:
     requirements: "{{ caldera_rootdir }}/requirements.txt"
     virtualenv: "{{ caldera_home }}/env-caldera"
     virtualenv_python: "{{ python }}"
@@ -76,14 +88,14 @@
   until: pkg_result is success
 
 - name: Identify other pip requirements
-  find:
+  ansible.builtin.find:
     paths: "{{ caldera_rootdir }}/plugins"
     patterns: 'requirements.txt'
     recurse: yes
   register: requirements
 
 - name: Install other pip requirements
-  pip:
+  ansible.builtin.pip:
     requirements: "{{ item.path }}"
     virtualenv: "{{ caldera_home }}/env-caldera"
     virtualenv_python: "{{ python }}"
@@ -91,8 +103,8 @@
   until: pkg_result is success
   loop: "{{ requirements.files }}"
 
-- name: copy default config to local config
-  copy:
+- name: Copy default config to local config
+  ansible.builtin.copy:
     src: "{{ caldera_rootdir }}/conf/default.yml"
     dest: "{{ caldera_rootdir }}/conf/local.yml"
     owner: "{{ caldera_user }}"
@@ -100,141 +112,131 @@
     mode: "0644"
     remote_src: true
 
-- name: add plugin to conf
-  lineinfile:
+- name: Add plugin to conf
+  ansible.builtin.lineinfile:
     path: "{{ caldera_rootdir }}/conf/local.yml"
     insertafter: 'plugins:'
     line: "- {{ item }}"
   with_items: "{{ plugins }}"
 
-- name: install frontend dependencies
-  npm:
+- name: Install frontend dependencies
+  community.general.npm:
     path: "{{ caldera_rootdir }}/plugins/magma/"
 
-- name: build frontend
-  command: npm run build
+- name: Build frontend
+  ansible.builtin.command: npm run build
   args:
     chdir: "{{ caldera_rootdir }}/plugins/magma/"
+    creates: "{{ caldera_rootdir }}/plugins/magma/src/plugins/emu/emu.vue"
 
-- name: git clone emu
-  git:
+- name: Clone emu
+  ansible.builtin.git:
     repo: https://github.com/mitre/emu.git
     dest: "{{ caldera_rootdir }}/plugins/emu"
+    version: "{{ emu_version }}"
     recursive: true
   become: yes
   become_user: "{{ caldera_user }}"
   register: result
 
-- name: git clone emulation plans
-  git:
+- name: Clone emulation plans
+  ansible.builtin.git:
     repo: https://github.com/center-for-threat-informed-defense/adversary_emulation_library
     dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans"
+    version: "{{ citd_version }}"
     recursive: true
   become: yes
   become_user: "{{ caldera_user }}"
   register: result
 
-- name: overwrite download_payloads.sh
-  copy:
+- name: Overwrite download_payloads.sh
+  ansible.builtin.copy:
     src: files/download_payloads.sh
     dest: "{{ caldera_rootdir }}/plugins/emu/download_payloads.sh"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
-- name: run download payloads script
-  command: "bash download_payloads.sh"
+- name: Run download payloads script
+  ansible.builtin.command: "bash download_payloads.sh"
   args:
     chdir: "{{ caldera_rootdir }}/plugins/emu/"
+    creates: "{{ caldera_rootdir }}/plugins/emu/AdFind.exe"
 
-- name: deploy modified wizard_spider plan
-  copy:
+- name: Deploy modified wizard_spider plan
+  ansible.builtin.copy:
     src: wizard_spider.yaml
     dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/wizard_spider/Emulation_Plan/yaml/wizard_spider.yaml"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
-- name: deploy modified menuPass plan
-  copy:
+- name: Deploy modified menuPass plan
+  ansible.builtin.copy:
     src: menupass.yaml
     dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/menu_pass/Emulation_Plan/yaml/menupass.yaml"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
-- name: deploy modified sandworm plan
-  copy:
+- name: Deploy modified sandworm plan
+  ansible.builtin.copy:
     src: sandworm.yaml
     dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/sandworm/Emulation_Plan/yaml/sandworm.yaml"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
-- name: create menupass web server directory
-  file:
+- name: Create menupass web server directory
+  ansible.builtin.file:
     path: "/tmp/menupass"
     state: directory
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
-- name: create menupass exfil directory
-  file:
+- name: Create menupass exfil directory
+  ansible.builtin.file:
     path: "/tmp/exfil"
     state: directory
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
-- name: deploy menupass binaries
-  copy:
+- name: Deploy menupass binaries
+  ansible.builtin.copy:
     src: menupass_binaries.zip
     dest: "/tmp/menupass/YmluYXJpZXM="
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
-- name: install caldera systemd configuration
-  template:
+- name: Install caldera systemd configuration
+  notify: Reload systemd
+  ansible.builtin.template:
     src: systemd-caldera.service.j2
     dest: /lib/systemd/system/caldera.service
     mode: '0644'
     backup: yes
   register: systemd_caldera
 
-- name: install menupass-webserver systemd configuration
-  template:
+- name: Install menupass-webserver systemd configuration
+  notify: Reload systemd
+  ansible.builtin.template:
     src: menupass-webserver.service.j2
     dest: /lib/systemd/system/menupass-webserver.service
     mode: '0644'
     backup: yes
   register: systemd_menupass
 
-- name: reload systemd - caldera
-  systemd:
-    daemon_reload: yes
-    name: caldera
-  when: systemd_caldera.changed
-  ignore_errors: true
-
-- name: reload systemd - menupass webserver
-  systemd:
-    daemon_reload: yes
-    name: caldera
-  when: systemd_menupass.changed
-  ignore_errors: true
-
-- name: enable and start caldera systemd service
-  service:
+- name: Enable and start caldera systemd service
+  ansible.builtin.service:
     name: caldera
     enabled: yes
     state: 'started'
-  ignore_errors: true
 
-- name: enable and start menupass webserver systemd service
-  service:
+- name: Enable and start menupass webserver systemd service
+  ansible.builtin.service:
     name: menupass-webserver
     enabled: yes
     state: 'started'
-  ignore_errors: true

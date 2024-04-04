@@ -2,6 +2,9 @@
 
 # v5.0.0
 caldera_version: 9ceb72d7bd11a3c8dc3851c90d0899379ab250d1
+emu_version: 72157680e3e2ba9a98f64678a937abfadb2ea1d2
+citd_version: 4a57b3dd5d28ad1bd79e927e04b20fd4d66934a0
+magma_version: cc156ee849dbe6a671825d21577d78ce68e60869
 caldera_user: caldera
 caldera_home: /opt/caldera
 caldera_rootdir: /opt/caldera/caldera
