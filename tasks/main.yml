@@ -16,13 +16,8 @@
   register: node_signing_key
 
 - name: Add NodeSource repositories for Node.js.
-  ansible.builtin.deb822_repository:
-    name: nodesource_{{ nodejs_version }}
-    uris: "https://deb.nodesource.com/node_{{ nodejs_version }}"
-    types: deb
-    suites: nodistro
-    components: main
-    signed_by: "{{ node_signing_key.dest }}"
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by={{ node_signing_key.dest }}] https://deb.nodesource.com/node_21.x nodistro main"
     state: present
   register: node_repo
 
@@ -99,12 +94,12 @@
   until: pkg_result is success
   loop: "{{ requirements.files }}"
 
- - name: add plugin to conf
-   lineinfile:
-     path: "{{ caldera_rootdir }}/conf/local.yml"
-     insertafter: 'plugins:'
-     line: "  - {{ item }}"
-   with_items: "{{ plugins }}"
+- name: add plugin to conf
+  lineinfile:
+    path: "{{ caldera_rootdir }}/conf/local.yml"
+    insertafter: 'plugins:'
+    line: "  - {{ item }}"
+  with_items: "{{ plugins }}"
 
 - name: install frontend dependencies
   npm:
