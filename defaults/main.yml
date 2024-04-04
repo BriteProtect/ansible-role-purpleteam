@@ -14,5 +14,10 @@ caldera_pkg:
   - python3-pip
   - python3-virtualenv
   - git
+  - freerdp2-x11
+  - xdotool
+  - smbclient
+  - zip
+  - unzip
 
 python: python3
