@@ -5,15 +5,11 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=python3 -m http.server 80
-WorkingDirectory=/tmp/menupass
+ExecStart=python3 -m http.server -d /tmp/menupass 80
 Restart=always
 RestartSec=10
-StandardOutput=syslog
-SyslogIdentifier=menupass_webserver
 User=root
 Group=nogroup
-PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
