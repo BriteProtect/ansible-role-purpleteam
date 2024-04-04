@@ -28,7 +28,7 @@
 
 - name: Ensure Node.js and npm are installed.
   ansible.builtin.apt:
-    name: "nodejs={{ nodejs_version | regex_replace('x', '') }}*"
+    name: nodejs
     state: present
 
 - name: Ensure caldera dependencies are present
@@ -62,10 +62,7 @@
   git:
     repo: https://github.com/mitre/caldera.git
     dest: "{{ caldera_rootdir }}"
-    version: "{{ caldera_version }}"
-    update: false
     recursive: true
-    depth: 1
   become: yes
   become_user: "{{ caldera_user }}"
   register: result
@@ -94,11 +91,20 @@
   until: pkg_result is success
   loop: "{{ requirements.files }}"
 
+- name: copy default config to local config
+  copy:
+    src: "{{ caldera_rootdir }}/conf/default.yml"
+    dest: "{{ caldera_rootdir }}/conf/local.yml"
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0644"
+    remote_src: true
+
 - name: add plugin to conf
   lineinfile:
     path: "{{ caldera_rootdir }}/conf/local.yml"
     insertafter: 'plugins:'
-    line: "  - {{ item }}"
+    line: "- {{ item }}"
   with_items: "{{ plugins }}"
 
 - name: install frontend dependencies
@@ -115,7 +121,15 @@
     repo: https://github.com/mitre/emu.git
     dest: "{{ caldera_rootdir }}/plugins/emu"
     recursive: true
-    depth: 1
+  become: yes
+  become_user: "{{ caldera_user }}"
+  register: result
+
+- name: git clone emulation plans
+  git:
+    repo: https://github.com/center-for-threat-informed-defense/adversary_emulation_library
+    dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans"
+    recursive: true
   become: yes
   become_user: "{{ caldera_user }}"
   register: result
@@ -123,20 +137,20 @@
 - name: overwrite download_payloads.sh
   copy:
     src: files/download_payloads.sh
-    dst: "{{ caldera_rootdir }}/plugins/emu/download_payloads.sh"
+    dest: "{{ caldera_rootdir }}/plugins/emu/download_payloads.sh"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
 
 - name: run download payloads script
-  command: "./download_payloads.sh"
+  command: "bash download_payloads.sh"
   args:
     chdir: "{{ caldera_rootdir }}/plugins/emu/"
 
 - name: deploy modified wizard_spider plan
   copy:
     src: wizard_spider.yaml
-    dst: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/wizard_spider/EmulationPlan/yaml/wizard_spider.yaml"
+    dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/wizard_spider/Emulation_Plan/yaml/wizard_spider.yaml"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
@@ -144,7 +158,7 @@
 - name: deploy modified menuPass plan
   copy:
     src: menupass.yaml
-    dst: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/menu_pass/EmulationPlan/yaml/menupass.yaml"
+    dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/menu_pass/Emulation_Plan/yaml/menupass.yaml"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
@@ -152,7 +166,7 @@
 - name: deploy modified sandworm plan
   copy:
     src: sandworm.yaml
-    dst: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/sandworm/EmulationPlan/yaml/sandworm.yaml"
+    dest: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/sandworm/Emulation_Plan/yaml/sandworm.yaml"
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0755"
@@ -187,7 +201,7 @@
     dest: /lib/systemd/system/caldera.service
     mode: '0644'
     backup: yes
-  register: systemd-caldera
+  register: systemd_caldera
 
 - name: install menupass-webserver systemd configuration
   template:
@@ -195,20 +209,20 @@
     dest: /lib/systemd/system/menupass-webserver.service
     mode: '0644'
     backup: yes
-  register: systemd-menupass
+  register: systemd_menupass
 
 - name: reload systemd - caldera
   systemd:
     daemon_reload: yes
     name: caldera
-  when: systemd-caldera.changed
+  when: systemd_caldera.changed
   ignore_errors: true
 
 - name: reload systemd - menupass webserver
   systemd:
     daemon_reload: yes
     name: caldera
-  when: systemd-menupass.changed
+  when: systemd_menupass.changed
   ignore_errors: true
 
 - name: enable and start caldera systemd service
