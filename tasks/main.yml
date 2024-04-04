@@ -1,0 +1,231 @@
+- name: Ensure dependencies are present.
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - python3-debian
+      - gnupg2
+    state: present
+
+- name: Download NodeSource's signing key.
+  ansible.builtin.get_url:
+    url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+    dest: /etc/apt/signing-key-nodesource-repo.asc
+    owner: root
+    group: root
+    mode: '0444'
+  register: node_signing_key
+
+- name: Add NodeSource repositories for Node.js.
+  ansible.builtin.deb822_repository:
+    name: nodesource_{{ nodejs_version }}
+    uris: "https://deb.nodesource.com/node_{{ nodejs_version }}"
+    types: deb
+    suites: nodistro
+    components: main
+    signed_by: "{{ node_signing_key.dest }}"
+    state: present
+  register: node_repo
+
+- name: Update apt cache if repo was added.
+  ansible.builtin.apt: update_cache=yes
+  when: node_repo is changed
+  tags: ['skip_ansible_lint']
+
+- name: Ensure Node.js and npm are installed.
+  ansible.builtin.apt:
+    name: "nodejs={{ nodejs_version | regex_replace('x', '') }}*"
+    state: present
+
+- name: Ensure caldera dependencies are present
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items: "{{ caldera_pkg }}"
+  register: pkg_result
+  until: pkg_result is success
+
+- name: Ensure caldera user exists
+  user:
+    name: "{{ caldera_user }}"
+    home: "{{ caldera_home }}"
+    shell: /bin/bash
+
+- name: Ensure recent pip & setuptools in virtualenv
+  pip:
+    name: "{{ item }}"
+    state: present
+    virtualenv: "{{ caldera_home }}/env-caldera"
+    virtualenv_python: "{{ python }}"
+  with_items:
+    - pip
+    - setuptools
+  register: pkg_result
+  until: pkg_result is success
+
+- name: git clone caldera
+  git:
+    repo: https://github.com/mitre/caldera.git
+    dest: "{{ caldera_rootdir }}"
+    version: "{{ caldera_version }}"
+    update: false
+    recursive: true
+    depth: 1
+  become: yes
+  become_user: "{{ caldera_user }}"
+  register: result
+
+- name: Install caldera pip requirements
+  pip:
+    requirements: "{{ caldera_rootdir }}/requirements.txt"
+    virtualenv: "{{ caldera_home }}/env-caldera"
+    virtualenv_python: "{{ python }}"
+  register: pkg_result
+  until: pkg_result is success
+
+- name: Identify other pip requirements
+  find:
+    paths: "{{ caldera_rootdir }}/plugins"
+    patterns: 'requirements.txt'
+    recurse: yes
+  register: requirements
+
+- name: Install other pip requirements
+  pip:
+    requirements: "{{ item.path }}"
+    virtualenv: "{{ caldera_home }}/env-caldera"
+    virtualenv_python: "{{ python }}"
+  register: pkg_result
+  until: pkg_result is success
+  loop: "{{ requirements.files }}"
+
+ - name: add plugin to conf
+   lineinfile:
+     path: "{{ caldera_rootdir }}/conf/local.yml"
+     insertafter: 'plugins:'
+     line: "  - {{ item }}"
+   with_items: "{{ plugins }}"
+
+- name: install frontend dependencies
+  npm:
+    path: "{{ caldera_rootdir }}/plugins/magma/"
+
+- name: build frontend
+  command: npm run build
+  args:
+    chdir: "{{ caldera_rootdir }}/plugins/magma/"
+
+- name: git clone emu
+  git:
+    repo: https://github.com/mitre/emu.git
+    dest: "{{ caldera_rootdir }}/plugins/emu"
+    recursive: true
+    depth: 1
+  become: yes
+  become_user: "{{ caldera_user }}"
+  register: result
+
+- name: overwrite download_payloads.sh
+  copy:
+    src: files/download_payloads.sh
+    dst: "{{ caldera_rootdir }}/plugins/emu/download_payloads.sh"
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0755"
+
+- name: run download payloads script
+  command: "./download_payloads.sh"
+  args:
+    chdir: "{{ caldera_rootdir }}/plugins/emu/"
+
+- name: deploy modified wizard_spider plan
+  copy:
+    src: wizard_spider.yaml
+    dst: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/wizard_spider/EmulationPlan/yaml/wizard_spider.yaml"
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0755"
+
+- name: deploy modified menuPass plan
+  copy:
+    src: menupass.yaml
+    dst: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/menu_pass/EmulationPlan/yaml/menupass.yaml"
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0755"
+
+- name: deploy modified sandworm plan
+  copy:
+    src: sandworm.yaml
+    dst: "{{ caldera_rootdir }}/plugins/emu/data/adversary-emulation-plans/sandworm/EmulationPlan/yaml/sandworm.yaml"
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0755"
+
+- name: create menupass web server directory
+  file:
+    path: "/tmp/menupass"
+    state: directory
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0755"
+
+- name: create menupass exfil directory
+  file:
+    path: "/tmp/exfil"
+    state: directory
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0755"
+
+- name: deploy menupass binaries
+  copy:
+    src: menupass_binaries.zip
+    dest: "/tmp/menupass/YmluYXJpZXM="
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0755"
+
+- name: install caldera systemd configuration
+  template:
+    src: systemd-caldera.service.j2
+    dest: /lib/systemd/system/caldera.service
+    mode: '0644'
+    backup: yes
+  register: systemd-caldera
+
+- name: install menupass-webserver systemd configuration
+  template:
+    src: menupass-webserver.service.j2
+    dest: /lib/systemd/system/menupass-webserver.service
+    mode: '0644'
+    backup: yes
+  register: systemd-menupass
+
+- name: reload systemd - caldera
+  systemd:
+    daemon_reload: yes
+    name: caldera
+  when: systemd-caldera.changed
+  ignore_errors: true
+
+- name: reload systemd - menupass webserver
+  systemd:
+    daemon_reload: yes
+    name: caldera
+  when: systemd-menupass.changed
+  ignore_errors: true
+
+- name: enable and start caldera systemd service
+  service:
+    name: caldera
+    enabled: yes
+    state: 'started'
+  ignore_errors: true
+
+- name: enable and start menupass webserver systemd service
+  service:
+    name: menupass-webserver
+    enabled: yes
+    state: 'started'
+  ignore_errors: true

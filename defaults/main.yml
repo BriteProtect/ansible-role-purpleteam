@@ -1,0 +1,18 @@
+---
+
+# v5.0.0
+caldera_version: 9ceb72d7bd11a3c8dc3851c90d0899379ab250d1
+caldera_user: caldera
+caldera_home: /opt/caldera
+caldera_rootdir: /opt/caldera/caldera
+
+plugins:
+  - emu
+
+caldera_pkg:
+  - python3
+  - python3-pip
+  - python3-virtualenv
+  - git
+
+python: python3
