@@ -1,0 +1,5 @@
+- name: Setup BriteProtect Purple Team Environment
+  hosts: localhost
+  become: true
+  roles:
+    - purpleteam
