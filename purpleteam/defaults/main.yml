@@ -22,5 +22,6 @@ caldera_pkg:
   - smbclient
   - zip
   - unzip
+  - golang
 
 python: python3
