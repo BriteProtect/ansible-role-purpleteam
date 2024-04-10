@@ -1,5 +1,5 @@
 # ansible-role-purpleteam
-Ansible role for deploying BriteProtect Purple Team simulation environment
+Ansible role for deploying BriteProtect Purple Team simulation environment on a Kali Linux machine
 
 # Usage
 ## Install Prerequisites
