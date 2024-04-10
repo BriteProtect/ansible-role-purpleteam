@@ -123,6 +123,21 @@
   community.general.npm:
     path: "{{ caldera_rootdir }}/plugins/magma/"
 
+- name: Copy default magma env template to prod
+  ansible.builtin.copy:
+    src: "{{ caldera_rootdir }}/plugins/magma/.env.template"
+    dest: "{{ caldera_rootdir }}/plugins/magma/.env"
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0644"
+    remote_src: true
+
+- name: Allow all IPs to connect to magma
+  ansible.builtin.lineinfile:
+    path: "{{ caldera_rootdir }}/plugins/magma/.env"
+    regexp: "^VITE_CALDERA_URL"
+    line: "VITE_CALDERA_URL=http://"
+
 - name: Build frontend
   ansible.builtin.command: npm run build
   args:

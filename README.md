@@ -13,5 +13,5 @@ git clone https://github.com/BriteProtect/ansible-role-purpleteam
 ## Run the Playbook
 ```
 cd ansible-role-purpleteam
-ansible-playbook playbook.yaml
+ansible-playbook playbook.yml
 ```
