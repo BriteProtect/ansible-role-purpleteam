@@ -202,6 +202,14 @@
     group: "{{ caldera_user }}"
     mode: "0755"
 
+- name: Deploy fixed psexec_sandworm.py
+  ansible.builtin.copy:
+    src: psexec_sandworm.py
+    dest: "{{ caldera_rootdir }}/plugins/emu/payloads/psexec_sandworm.py"
+    owner: "{{ caldera_user }}"
+    group: "{{ caldera_user }}"
+    mode: "0775"
+
 - name: Create menupass web server directory
   ansible.builtin.file:
     path: "/tmp/menupass"
