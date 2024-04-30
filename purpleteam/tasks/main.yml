@@ -209,6 +209,7 @@
     owner: "{{ caldera_user }}"
     group: "{{ caldera_user }}"
     mode: "0775"
+    force: yes
 
 - name: Create menupass web server directory
   ansible.builtin.file:
