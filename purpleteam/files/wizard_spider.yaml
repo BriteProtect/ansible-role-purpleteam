@@ -111,6 +111,8 @@
           xdotool key --window "$rdp_window" Super_L;
           sleep 5;
           xdotool windowactivate --sync "$rdp_window" type --delay 200 "C:\Users\#{initial.user.name}\Desktop\ChristmasCard.exe";
+          sleep 5; xdotool windowactivate --sync "$rdp_window" key --clearmodifiers --delay 200 Control_L+Shift_L+Return;
+          sleep 10; xdotool windowactivate --sync "$rdp_window" key Left;
           sleep 3; xdotool key --window "$rdp_window" Return;
           sleep 30;
         timeout: 150
